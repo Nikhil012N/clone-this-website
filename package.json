@@ -1,0 +1,51 @@
+{
+  "name": "clone-this-website",
+  "version": "1.0.2",
+  "description": "Professional cross-platform website cloner with beautiful CLI interface",
+  "main": "index.js",
+  "bin": {
+    "clone-this-website": "index.js"
+  },
+  "files": [
+    "index.js",
+    "test.js",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js",
+    "build": "npm pack && echo '✅ Package built successfully!' && echo '📦 Ready to publish with: npm publish'"
+  },
+  "keywords": [
+    "website-cloner",
+    "web-scraping",
+    "cli",
+    "terminal",
+    "cross-platform",
+    "wget",
+    "website-downloader"
+  ],
+  "author": "Website Cloner Pro",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "inquirer": "^8.2.5",
+    "cli-progress": "^3.12.0",
+    "commander": "^9.4.1",
+    "axios": "^1.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nikhil012N/clone-this-website.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Nikhil012N/clone-this-website/issues"
+  },
+  "homepage": "https://github.com/Nikhil012N/clone-this-website#readme"
+}
