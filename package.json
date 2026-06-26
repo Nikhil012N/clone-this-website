@@ -1,6 +1,6 @@
 {
   "name": "clone-this-website",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Professional cross-platform website cloner with beautiful CLI interface",
   "main": "index.js",
   "bin": {
@@ -33,12 +33,16 @@
     "node": ">=12.0.0"
   },
   "dependencies": {
+    "archiver": "^8.0.0",
+    "axios": "^1.6.0",
+    "boxen": "5",
     "chalk": "^4.1.2",
-    "ora": "^5.4.1",
-    "inquirer": "^8.2.5",
     "cli-progress": "^3.12.0",
     "commander": "^9.4.1",
-    "axios": "^1.6.0"
+    "figlet": "^1.11.0",
+    "gradient-string": "^3.0.0",
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1"
   },
   "repository": {
     "type": "git",

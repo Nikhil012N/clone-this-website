@@ -11,7 +11,10 @@ const inquirer = require('inquirer');
 const cliProgress = require('cli-progress');
 const { Command } = require('commander');
 const axios = require('axios');
-
+const figlet = require('figlet');
+const gradient = require('gradient-string');
+const boxen = require('boxen');
+const archiver = require('archiver');
 const program = new Command();
 
 // Professional CLI styling
@@ -29,13 +32,19 @@ const styles = {
 // Display beautiful header
 function showHeader() {
   console.clear();
-  console.log(styles.title(`
-╔══════════════════════════════════════════════════════════════╗
-║                    WEBSITE CLONER PRO                        ║
-║               Professional Cross-Platform Tool                ║
-╚══════════════════════════════════════════════════════════════╝
-`));
-  console.log(styles.subtitle('🌐 Clone any website with ease and precision\n'));
+  const titleText = figlet.textSync('Website Cloner', { font: 'Slant' });
+  console.log(gradient.pastel.multiline(titleText));
+  
+  const message = styles.subtitle('🌐 Clone any website with ease and precision\n') +
+                  styles.info('   Professional Cross-Platform Tool');
+  
+  console.log(boxen(message, {
+    padding: 1,
+    margin: 1,
+    borderStyle: 'round',
+    borderColor: 'cyan',
+    align: 'center'
+  }));
 }
 
 // Validate URL format
@@ -51,6 +60,15 @@ function validateURL(url) {
 // Check if wget is installed
 async function checkWgetInstallation() {
   const spinner = ora('Checking system dependencies...').start();
+  
+  if (os.platform() === 'win32') {
+    const wgetPath = path.join(__dirname, 'wget.exe');
+    if (fs.existsSync(wgetPath)) {
+      process.env.PATH = `${__dirname}${path.delimiter}${process.env.PATH}`;
+      spinner.succeed('wget is already installed (local)');
+      return true;
+    }
+  }
   
   try {
     execSync('wget --version', { stdio: 'ignore' });
@@ -214,7 +232,7 @@ async function cloneWebsite(url, options) {
   console.log(styles.subtitle('\n🚀 Starting website clone...\n'));
   
   const progressBar = new cliProgress.SingleBar({
-    format: 'Cloning |' + chalk.cyan('{bar}') + '| {percentage}% | {value}/{total} files',
+    format: gradient.cristal('Cloning') + ' |' + chalk.cyan('{bar}') + '| {percentage}% | {value}/{total} files',
     barCompleteChar: '\u2588',
     barIncompleteChar: '\u2591',
     hideCursor: true
@@ -235,13 +253,31 @@ async function cloneWebsite(url, options) {
       url
     ];
     
+    if (options.userAgent) {
+      wgetArgs.push(`--user-agent=${options.userAgent}`);
+    }
+    if (options.delay) {
+      wgetArgs.push(`--wait=${options.delay}`);
+    }
+    if (options.exclude) {
+      wgetArgs.push(`--reject=${options.exclude}`);
+    }
+    
     if (options.verbose) {
       wgetArgs.push('--verbose');
     } else {
       wgetArgs.push('--quiet');
     }
     
-    const wget = spawn('wget', wgetArgs);
+    let wgetCmd = 'wget';
+    if (os.platform() === 'win32') {
+      const localWget = path.join(__dirname, 'wget.exe');
+      if (fs.existsSync(localWget)) {
+        wgetCmd = localWget;
+      }
+    }
+    
+    const wget = spawn(wgetCmd, wgetArgs);
     let fileCount = 0;
     
     wget.stderr.on('data', (data) => {
@@ -258,7 +294,7 @@ async function cloneWebsite(url, options) {
       }
     });
     
-    wget.on('close', (code) => {
+    wget.on('close', async (code) => {
       progressBar.stop();
       
       if (code === 0) {
@@ -267,12 +303,19 @@ async function cloneWebsite(url, options) {
         
         // Show directory info
         try {
-          const stats = fs.statSync(outputDir);
           const files = countFiles(outputDir);
           console.log(styles.info(`📊 Total files downloaded: ${files}`));
           console.log(styles.info(`📏 Directory size: ${formatBytes(getDirectorySize(outputDir))}`));
         } catch (e) {
           // Ignore stats errors
+        }
+        
+        if (options.zip) {
+          try {
+            await zipDirectory(outputDir);
+          } catch (err) {
+            console.log(styles.error(`\n❌ Failed to create zip: ${err.message}`));
+          }
         }
         
         resolve(outputDir);
@@ -339,6 +382,30 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// Zip functionality
+function zipDirectory(dir) {
+  return new Promise((resolve, reject) => {
+    const spinner = ora('Creating zip archive...').start();
+    const outPath = `${dir}.zip`;
+    const output = fs.createWriteStream(outPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    
+    output.on('close', () => {
+      spinner.succeed(`Archive created successfully: ${styles.path(outPath)} (${formatBytes(archive.pointer())})`);
+      resolve(outPath);
+    });
+    
+    archive.on('error', (err) => {
+      spinner.fail(`Failed to create archive: ${err.message}`);
+      reject(err);
+    });
+    
+    archive.pipe(output);
+    archive.directory(dir, false);
+    archive.finalize();
+  });
+}
+
 // Interactive mode
 async function interactiveMode() {
   showHeader();
@@ -371,10 +438,33 @@ async function interactiveMode() {
       name: 'verbose',
       message: 'Enable verbose output?',
       default: false
+    },
+    {
+      type: 'confirm',
+      name: 'zip',
+      message: 'Create a zip archive after cloning?',
+      default: false
+    },
+    {
+      type: 'input',
+      name: 'delay',
+      message: 'Delay between requests in seconds (optional, e.g. 1):',
+      default: ''
+    },
+    {
+      type: 'input',
+      name: 'exclude',
+      message: 'File extensions to exclude (optional, e.g. pdf,mp4):',
+      default: ''
     }
   ]);
   
   try {
+    const wgetInstalled = await checkWgetInstallation();
+    if (!wgetInstalled) {
+      await installWget();
+    }
+    
     await cloneWebsite(answers.url, answers);
   } catch (error) {
     console.log(styles.error(`\n❌ Failed to clone website: ${error.message}`));
@@ -395,6 +485,10 @@ program
   .option('-s, --skip-test', 'Skip website accessibility test')
   .option('-v, --verbose', 'Enable verbose output')
   .option('-i, --interactive', 'Start in interactive mode')
+  .option('-z, --zip', 'Create a zip archive of the downloaded website')
+  .option('-u, --user-agent <string>', 'Set a custom User-Agent string')
+  .option('-d, --delay <seconds>', 'Delay between requests in seconds')
+  .option('-e, --exclude <extensions>', 'Comma-separated list of extensions to exclude (e.g., pdf,mp4)')
   .action(async (url, options) => {
     try {
       if (options.interactive || !url) {
