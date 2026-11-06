@@ -3,13 +3,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const chalk = require('chalk');
-const figlet = require('figlet');
-const gradient = require('gradient-string');
-const boxen = require('boxen');
-const ora = require('ora');
-const inquirer = require('inquirer');
-const cliProgress = require('cli-progress');
 const { Command } = require('commander');
 
 const { WebsiteCloner } = require('../lib/cloner');
@@ -20,147 +15,117 @@ const packageJson = require('../package.json');
 const program = new Command();
 
 const styles = {
-  title: chalk.bold.cyan,
-  subtitle: chalk.bold.blue,
-  success: chalk.bold.green,
-  error: chalk.bold.red,
-  warning: chalk.bold.yellow,
-  info: chalk.bold.magenta,
-  url: chalk.underline.blue,
-  path: chalk.italic.gray
+  header: chalk.cyan.bold,
+  dim: chalk.gray,
+  success: chalk.green.bold,
+  error: chalk.red.bold,
+  info: chalk.blue,
+  label: chalk.white.bold,
+  value: chalk.yellow
 };
 
-function showHeader() {
-  console.clear();
-  const titleText = figlet.textSync('Website Cloner', { font: 'Slant' });
-  console.log(gradient.pastel.multiline(titleText));
+function printBanner() {
+  console.log(styles.header(`--------------------------------------------------`));
+  console.log(styles.header(` clone-this-website v${packageJson.version}`));
+  console.log(styles.dim(` Enterprise Website Mirroring & Crawler Tool`));
+  console.log(styles.header(`--------------------------------------------------\n`));
+}
 
-  const message = styles.subtitle('🌐 Enterprise Cross-Platform Website Cloner & Crawler\n') +
-                  styles.info('   Dual Engine (Native Node.js & System Wget) | SDK & CLI');
+function prompt(questionText, defaultVal = '') {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
 
-  console.log(boxen(message, {
-    padding: 1,
-    margin: 1,
-    borderStyle: 'round',
-    borderColor: 'cyan',
-    align: 'center'
-  }));
+  const promptMessage = defaultVal ? `${questionText} [${defaultVal}]: ` : `${questionText}: `;
+  return new Promise((resolve) => {
+    rl.question(promptMessage, (answer) => {
+      rl.close();
+      const val = answer.trim();
+      resolve(val || defaultVal);
+    });
+  });
 }
 
 async function interactiveMode() {
-  showHeader();
+  printBanner();
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'url',
-      message: 'Enter website URL to clone:',
-      validate: (input) => {
-        if (!input.trim()) return 'URL is required';
-        if (!validateUrl(input.trim())) return 'Please enter a valid URL (e.g., https://example.com)';
-        return true;
-      }
-    },
-    {
-      type: 'list',
-      name: 'engine',
-      message: 'Select crawling engine:',
-      choices: [
-        { name: 'Auto (Detect best available engine)', value: 'auto' },
-        { name: 'Native (Pure Node.js - Zero external dependencies)', value: 'native' },
-        { name: 'System (Wget binary - Maximum raw throughput)', value: 'system' }
-      ],
-      default: 'auto'
-    },
-    {
-      type: 'input',
-      name: 'output',
-      message: 'Output directory name (optional):',
-      default: ''
-    },
-    {
-      type: 'input',
-      name: 'maxDepth',
-      message: 'Max crawling recursion depth:',
-      default: '3',
-      validate: (input) => !isNaN(parseInt(input, 10)) || 'Must be a number'
-    },
-    {
-      type: 'confirm',
-      name: 'zip',
-      message: 'Archive output into a zip file when done?',
-      default: false
-    },
-    {
-      type: 'input',
-      name: 'delay',
-      message: 'Rate limit delay between requests in seconds (optional, e.g. 1):',
-      default: '0'
-    },
-    {
-      type: 'input',
-      name: 'exclude',
-      message: 'File extensions to exclude (comma separated, e.g. pdf,mp4):',
-      default: ''
+  let targetUrl = '';
+  while (!targetUrl) {
+    const input = await prompt('Target website URL to mirror (e.g., https://example.com)');
+    if (validateUrl(input)) {
+      targetUrl = input;
+    } else {
+      console.log(styles.error('Invalid URL format. Please provide an http:// or https:// URL.\n'));
     }
-  ]);
+  }
 
-  return runCloner(answers.url, {
-    ...answers,
-    maxDepth: parseInt(answers.maxDepth, 10) || 3,
-    delay: parseFloat(answers.delay) || 0
-  });
+  const engineChoice = await prompt('Engine selection (auto / native / system)', 'auto');
+  const outputDir = await prompt('Output directory name', '');
+  const maxDepthStr = await prompt('Max crawl depth recursion', '3');
+  const zipChoice = await prompt('Create zip archive upon completion? (y/N)', 'n');
+  const delayStr = await prompt('Request delay throttle in seconds', '0');
+
+  const options = {
+    engine: ['auto', 'native', 'system'].includes(engineChoice.toLowerCase()) ? engineChoice.toLowerCase() : 'auto',
+    output: outputDir || null,
+    maxDepth: parseInt(maxDepthStr, 10) || 3,
+    zip: zipChoice.toLowerCase().startsWith('y'),
+    delay: parseFloat(delayStr) || 0
+  };
+
+  return runCloner(targetUrl, options);
 }
 
 async function runCloner(url, options) {
   if (!options.json) {
-    console.log(styles.info(`\n🌐 Target: ${styles.url(url)}`));
-    console.log(styles.info(`⚙️  Engine: ${options.engine || 'auto'}`));
-  }
-
-  let progressBar = null;
-  if (!options.verbose && !options.json) {
-    progressBar = new cliProgress.SingleBar({
-      format: gradient.cristal('Cloning') + ' |' + chalk.cyan('{bar}') + '| {value} files fetched',
-      barCompleteChar: '\u2588',
-      barIncompleteChar: '\u2591',
-      hideCursor: true
-    });
-    progressBar.start(100, 0);
+    console.log(`${styles.label('Target URL:')}    ${styles.value(url)}`);
+    console.log(`${styles.label('Engine:')}        ${styles.value(options.engine || 'auto')}`);
+    console.log(`${styles.label('Max Depth:')}     ${styles.value(options.maxDepth || 3)}`);
+    console.log(`${styles.dim('--------------------------------------------------')}`);
   }
 
   const cloner = new WebsiteCloner(options);
 
+  let lastLineLength = 0;
   cloner.on('progress', (data) => {
-    if (progressBar) {
-      progressBar.update(data.count || 0);
+    if (!options.json && !options.verbose) {
+      const msg = `Fetched ${data.count || 0} resource(s)${data.url ? ` | Current: ${data.url.slice(0, 45)}` : ''}`;
+      const padded = msg.padEnd(lastLineLength, ' ');
+      lastLineLength = padded.length;
+      process.stdout.write(`\r${styles.info(padded)}`);
     }
   });
 
   try {
     const result = await cloner.clone(url);
-    if (progressBar) progressBar.stop();
+    if (!options.json && !options.verbose) {
+      process.stdout.write('\r' + ' '.repeat(lastLineLength) + '\r');
+    }
 
     if (options.json) {
       console.log(JSON.stringify(result, null, 2));
       return;
     }
 
-    console.log('\n' + styles.success('✅ Website cloned successfully!'));
-    console.log(styles.info(`📂 Output Directory: ${styles.path(result.outputDir)}`));
-    console.log(styles.info(`📊 Total Files Downloaded: ${result.totalFiles}`));
-    console.log(styles.info(`📏 Total Size: ${result.formattedSize}`));
-    console.log(styles.info(`⚡ Engine Used: ${result.engine}`));
+    console.log(`\n${styles.success('Mirror completed successfully.')}`);
+    console.log(`${styles.label('Destination:')}   ${result.outputDir}`);
+    console.log(`${styles.label('Total Files:')}   ${result.totalFiles}`);
+    console.log(`${styles.label('Total Size:')}    ${result.formattedSize}`);
+    console.log(`${styles.label('Engine Used:')}   ${result.engine}`);
 
     if (result.archive) {
-      console.log(styles.success(`📦 Archive Created: ${styles.path(result.archive.path)} (${result.archive.formattedSize})`));
+      console.log(`${styles.label('Archive:')}       ${result.archive.path} (${result.archive.formattedSize})`);
     }
   } catch (err) {
-    if (progressBar) progressBar.stop();
+    if (!options.json && !options.verbose) {
+      process.stdout.write('\r' + ' '.repeat(lastLineLength) + '\r');
+    }
+
     if (options.json) {
       console.error(JSON.stringify({ error: err.message }, null, 2));
     } else {
-      console.error(styles.error(`\n❌ Clone failed: ${err.message}`));
+      console.error(`\n${styles.error('Operation failed:')} ${err.message}`);
     }
     process.exit(1);
   }
@@ -168,26 +133,26 @@ async function runCloner(url, options) {
 
 program
   .name('clone-this-website')
-  .description('Enterprise cross-platform website cloner with Dual Engine (Native Node.js & Wget)')
+  .description('Enterprise cross-platform website mirroring engine with Dual Engine execution')
   .version(packageJson.version);
 
 program
-  .argument('[url]', 'Website URL to clone')
+  .argument('[url]', 'Website URL to mirror')
   .option('-o, --output <dir>', 'Custom output directory path')
   .option('--config <path>', 'Path to custom configuration file (.clonerc.json, cloner.config.js)')
-  .option('--engine <engine>', 'Engine to use: "auto", "native", or "system"')
+  .option('--engine <engine>', 'Engine choice: auto, native, system')
   .option('-m, --max-depth <depth>', 'Maximum crawl depth recursion', (v) => parseInt(v, 10))
   .option('-c, --concurrency <number>', 'Concurrent connection limit for native crawler', (v) => parseInt(v, 10))
-  .option('-d, --delay <seconds>', 'Delay between requests in seconds', (v) => parseFloat(v))
-  .option('-z, --zip', 'Create a zip archive of the output')
-  .option('--tar', 'Create a tar.gz archive of the output')
+  .option('-d, --delay <seconds>', 'Throttle delay between requests in seconds', (v) => parseFloat(v))
+  .option('-z, --zip', 'Generate .zip archive upon completion')
+  .option('--tar', 'Generate .tar.gz archive upon completion')
   .option('-u, --user-agent <string>', 'Custom User-Agent header')
   .option('--proxy <proxyUrl>', 'HTTP/HTTPS proxy server (e.g., http://proxy:8080)')
   .option('-e, --exclude <extensions>', 'Comma-separated file extensions to exclude (e.g. pdf,mp4)')
   .option('-f, --force', 'Force clone even if target accessibility test fails')
   .option('-s, --skip-test', 'Skip connectivity check before starting')
-  .option('-v, --verbose', 'Enable verbose logging')
-  .option('--json', 'Output structured JSON responses (CI/CD friendly)')
+  .option('-v, --verbose', 'Enable verbose diagnostic logging')
+  .option('--json', 'Output structured JSON responses for CI/CD runners')
   .option('-i, --interactive', 'Run in interactive CLI mode')
   .action(async (url, opts) => {
     try {
@@ -202,7 +167,7 @@ program
       }
 
       if (!validateUrl(targetUrl)) {
-        console.error(styles.error(`❌ Invalid URL format "${targetUrl}". Must start with http:// or https://`));
+        console.error(styles.error(`Invalid URL format: "${targetUrl}". Expected http:// or https:// protocol.`));
         process.exit(1);
       }
 
@@ -211,13 +176,12 @@ program
         mergedOpts.archiveFormat = 'tar';
       }
 
-      if (!mergedOpts.json) showHeader();
+      if (!mergedOpts.json) printBanner();
       await runCloner(targetUrl, mergedOpts);
     } catch (err) {
-      console.error(styles.error(`❌ Error: ${err.message}`));
+      console.error(styles.error(`Execution error: ${err.message}`));
       process.exit(1);
     }
   });
 
 program.parse();
-

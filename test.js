@@ -44,7 +44,7 @@ async function runTests() {
   console.log('\n--- 3. CLI Commands ---');
   try {
     const helpOutput = execSync('node bin/cli.js --help', { encoding: 'utf8' });
-    assert('CLI --help outputs description', helpOutput.includes('Enterprise cross-platform website cloner'));
+    assert('CLI --help outputs description', helpOutput.includes('Enterprise cross-platform website mirroring engine'));
     assert('CLI supports --engine option', helpOutput.includes('--engine'));
     assert('CLI supports --json option', helpOutput.includes('--json'));
   } catch (err) {
