@@ -1,7 +1,7 @@
 {
   "name": "clone-this-website",
-  "version": "2.0.0",
-  "description": "Enterprise-grade cross-platform website cloner & crawler with Dual Engine (Native Node.js & Wget), programmatic SDK, and CLI",
+  "version": "2.1.0",
+  "description": "Ultra-lightweight enterprise website mirroring engine and AI crawler with Dual Engine execution, zero-vulnerability footprint, and LLM/RAG Markdown extraction",
   "main": "index.js",
   "types": "index.d.ts",
   "bin": {
@@ -24,11 +24,12 @@
   "keywords": [
     "website-cloner",
     "web-crawler",
+    "rag-crawler",
+    "ai-scraper",
+    "llm-ingestion",
     "website-downloader",
     "mirror",
     "offline-website",
-    "web-scraping",
-    "wget",
     "enterprise-scraper",
     "cli",
     "sdk"
@@ -36,14 +37,10 @@
   "author": "Website Cloner Pro",
   "license": "MIT",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "dependencies": {
-    "archiver": "^8.0.0",
-    "axios": "^1.6.0",
-    "chalk": "^4.1.2",
-    "cheerio": "^1.0.0-rc.12",
-    "commander": "^9.4.1"
+    "cheerio": "^1.0.0-rc.12"
   },
   "repository": {
     "type": "git",

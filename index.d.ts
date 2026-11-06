@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 
 export type EngineType = 'auto' | 'native' | 'system';
-export type ArchiveFormat = 'zip' | 'tar';
+export type ArchiveFormat = 'tar' | 'zip';
 
 export interface ClonerOptions {
   engine?: EngineType;
@@ -21,6 +21,7 @@ export interface ClonerOptions {
   exclude?: string;
   headers?: Record<string, string>;
   allowCrossOriginAssets?: boolean;
+  extractMarkdown?: boolean; // AI / LLM ingestion mode: outputs clean .md alongside HTML
 }
 
 export interface ArchiveResult {
@@ -103,4 +104,3 @@ export declare const utils: {
   validateUrl(input: string): boolean;
   sanitizePath(urlPath: string): string;
 };
-

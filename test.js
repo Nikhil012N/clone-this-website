@@ -6,14 +6,14 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-console.log('🧪 Running Enterprise Test Suite for clone-this-website (v2.0.0)...\n');
+console.log('Running Enterprise Test Suite for clone-this-website (v2.1.0)...\n');
 
 let failed = false;
 function assert(name, condition, errorMsg = '') {
   if (condition) {
-    console.log(`✅ ${name}`);
+    console.log(`[PASS] ${name}`);
   } else {
-    console.error(`❌ ${name}: ${errorMsg}`);
+    console.error(`[FAIL] ${name}: ${errorMsg}`);
     failed = true;
   }
 }
@@ -29,7 +29,7 @@ async function runTests() {
   assert('lib/engines/native.js exists', fs.existsSync('lib/engines/native.js'));
   assert('lib/engines/system.js exists', fs.existsSync('lib/engines/system.js'));
 
-  // 2. Programmatic SDK export verification
+  // 2. Programmatic SDK Export verification
   console.log('\n--- 2. Programmatic SDK Export ---');
   const { WebsiteCloner, NativeEngine, SystemEngine, Logger, utils } = require('./index');
   assert('WebsiteCloner is class', typeof WebsiteCloner === 'function');
@@ -47,11 +47,12 @@ async function runTests() {
     assert('CLI --help outputs description', helpOutput.includes('Enterprise cross-platform website mirroring engine'));
     assert('CLI supports --engine option', helpOutput.includes('--engine'));
     assert('CLI supports --json option', helpOutput.includes('--json'));
+    assert('CLI supports AI --markdown option', helpOutput.includes('--markdown'));
   } catch (err) {
     assert('CLI --help command runs', false, err.message);
   }
 
-  // 4. Mock Server & Native Engine Integration Test
+  // 4. Mock Server & Native Crawl with AI Markdown Generation Integration Test
   console.log('\n--- 4. Mock Server & Native Crawl Integration ---');
   const mockPort = 8999;
   const mockServer = http.createServer((req, res) => {
@@ -63,6 +64,7 @@ async function runTests() {
           <head><title>Mock Enterprise Test Site</title></head>
           <body>
             <h1>Enterprise Mirror Test</h1>
+            <p>Welcome to enterprise automated mirror system.</p>
             <a href="/about.html">About Page</a>
             <img src="/logo.png" />
           </body>
@@ -70,7 +72,7 @@ async function runTests() {
       `);
     } else if (req.url === '/about.html') {
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<html><body><h1>About Page</h1><a href="/">Home</a></body></html>');
+      res.end('<html><body><h1>About Page</h1><p>Documentation for LLM ingestion.</p><a href="/">Home</a></body></html>');
     } else if (req.url === '/logo.png') {
       res.writeHead(200, { 'Content-Type': 'image/png' });
       res.end(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
@@ -92,6 +94,7 @@ async function runTests() {
       engine: 'native',
       output: testOutputDir,
       zip: true,
+      extractMarkdown: true, // Test AI RAG markdown output
       maxDepth: 2,
       skipTest: true
     });
@@ -107,11 +110,16 @@ async function runTests() {
     assert('index.html cloned to disk', fs.existsSync(path.join(testOutputDir, 'index.html')));
     assert('about.html cloned to disk', fs.existsSync(path.join(testOutputDir, 'about.html')));
     assert('logo.png cloned to disk', fs.existsSync(path.join(testOutputDir, 'logo.png')));
-    assert('Zip archive created', fs.existsSync(`${testOutputDir}.zip`));
+    assert('Clean Markdown for AI extracted', fs.existsSync(path.join(testOutputDir, 'index.md')));
+    assert('tar.gz archive created via native zlib', fs.existsSync(`${testOutputDir}.tar.gz`));
 
     // Inspect index.html asset rewriting
     const savedHtml = fs.readFileSync(path.join(testOutputDir, 'index.html'), 'utf8');
     assert('HTML link rewritten relative', savedHtml.includes('about.html'));
+
+    // Inspect AI markdown content
+    const savedMd = fs.readFileSync(path.join(testOutputDir, 'index.md'), 'utf8');
+    assert('Markdown extracted clean heading', savedMd.includes('# Enterprise Mirror Test'));
   } catch (err) {
     assert('Native crawler mirror test passes', false, err.message);
   } finally {
@@ -120,16 +128,16 @@ async function runTests() {
     if (fs.existsSync(testOutputDir)) {
       fs.rmSync(testOutputDir, { recursive: true, force: true });
     }
-    if (fs.existsSync(`${testOutputDir}.zip`)) {
-      fs.unlinkSync(`${testOutputDir}.zip`);
+    if (fs.existsSync(`${testOutputDir}.tar.gz`)) {
+      fs.unlinkSync(`${testOutputDir}.tar.gz`);
     }
   }
 
   if (failed) {
-    console.error('\n❌ Tests failed.');
+    console.error('\nTests failed.');
     process.exit(1);
   } else {
-    console.log('\n🎉 All enterprise tests passed successfully!\n');
+    console.log('\nAll enterprise tests passed successfully!\n');
   }
 }
 

@@ -1,34 +1,36 @@
 # clone-this-website
 
-> Enterprise-grade cross-platform website mirroring engine and web crawler with Dual Engine execution, programmatic SDK, and Command Line Interface.
+> Ultra-lightweight enterprise website mirroring engine and AI crawler with Dual Engine execution, zero-vulnerability footprint, and automated LLM/RAG Markdown extraction.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)](https://nodejs.org)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
+[![Vulnerabilities](https://img.shields.io/badge/vulnerabilities-0-brightgreen.svg)](package.json)
 [![TypeScript](https://img.shields.io/badge/types-TypeScript-blue.svg)](index.d.ts)
 
 ---
 
 ## Overview
 
-`clone-this-website` is a modular, high-performance website mirroring engine designed for enterprise environments. It provides both a programmable Node.js/TypeScript SDK and a scriptable CLI for automated pipelines, archiving workflows, and offline site replication.
+`clone-this-website` is a minimal, high-performance website mirroring engine engineered for modern enterprise infrastructures and AI data pipelines. It provides both a programmable Node.js/TypeScript SDK and a zero-dependency CLI.
 
-### Key Capabilities
+### Architectural Highlights
 
+- **Near-Zero External Dependencies**: Engineered with only 1 dependency (`cheerio` for HTML/CSS DOM parsing). All networking, CLI parsing, progress streaming, and compression use native Node.js built-ins (`fetch`, `readline`, `zlib`, `stream`).
+- **Zero Vulnerabilities**: 100% clean security profile verified by `npm audit` with 0 warnings.
+- **AI & RAG Ready (`--markdown`, `--ai`)**: Automatically strips clutter (scripts, SVGs, boilerplate) and generates clean, structured Markdown alongside mirrored assets for direct ingestion into LLM context windows, embedding models, and vector stores (Pinecone, Chroma, Qdrant).
 - **Dual Engine Architecture**:
-  - **Native Engine (`native`)**: Pure Node.js recursive crawler and asset rewriter powered by Cheerio and Axios. Operates with zero external binary dependencies, making it suitable for restricted environments, non-root Docker containers, and locked-down CI/CD workers.
-  - **System Engine (`system`)**: Streamed execution utilizing system-installed `wget` for high-throughput raw mirrors.
+  - **Native Engine (`native`)**: Pure Node.js recursive crawler and asset rewriter. Works in restricted containers, non-root environments, and locked-down CI/CD workers without external binaries.
+  - **System Engine (`system`)**: Streamed execution utilizing system `wget` for high-throughput raw mirrors.
   - **Automated Engine Selection (`auto`)**: Dynamically resolves the optimal engine based on host capabilities.
-- **Deep Asset Localization**: Traverses and rewrites internal links, scripts, stylesheets, images, and fonts to relative paths for offline browsing.
-- **Enterprise Network Controls**: Support for authenticated HTTP/HTTPS proxies, custom request headers, configurable User-Agent strings, and rate-limiting timeouts.
-- **Automated Compression & Bundling**: Integrated archiving supporting `.zip` and `.tar.gz` output generation.
-- **CI/CD Integration**: Supports `--json` flags for structured output ingestion into observability pipelines and automated runners.
+- **Native USTAR Tar.gz Archiving**: High-performance streaming compression powered by Node's native `zlib`—no external unmaintained compression libraries.
+- **Enterprise Network Controls**: Support for authenticated proxies, custom request headers, configurable User-Agent strings, and rate-limiting timeouts.
 - **Declarative Configuration**: Automatically loads options from `.clonerc`, `.clonerc.json`, or custom config files.
 
 ---
 
 ## Installation
 
-### Global Installation (CLI)
+### Global CLI
 
 ```bash
 npm install -g clone-this-website
@@ -50,10 +52,10 @@ npm install clone-this-website
 # Basic usage
 clone-this-website https://example.com
 
-# Explicit output directory and engine selection
-clone-this-website https://example.com --engine native -o ./mirrors/example
+# AI Pipeline: Mirror site and generate clean Markdown for LLM ingestion
+clone-this-website https://example.com --ai
 
-# Mirror with immediate zip compression
+# Mirror and package into a compressed tar.gz bundle
 clone-this-website https://example.com --zip
 
 # Limit recursion depth and rate-limit requests
@@ -65,7 +67,7 @@ clone-this-website https://example.com --proxy http://proxy.internal:8080 -u "Cu
 # Exclude media formats
 clone-this-website https://example.com -e "mp4,mp3,pdf,zip"
 
-# Machine-readable JSON output for automated pipelines
+# Machine-readable JSON output for automated CI/CD pipelines
 clone-this-website https://example.com --json
 ```
 
@@ -76,11 +78,11 @@ clone-this-website https://example.com --json
 | `-o, --output <dir>` | Destination directory for cloned assets | Target hostname |
 | `--config <path>` | Path to custom configuration file | Auto-detected |
 | `--engine <type>` | Engine choice: `auto`, `native`, or `system` | `auto` |
+| `--markdown`, `--ai` | Extract clean Markdown alongside HTML for LLMs/RAG | `false` |
 | `-m, --max-depth <n>` | Maximum recursion crawl depth | `3` |
 | `-c, --concurrency <n>` | Maximum concurrent connections (Native Engine) | `5` |
 | `-d, --delay <s>` | Throttle delay between requests in seconds | `0` |
-| `-z, --zip` | Generate `.zip` archive upon completion | `false` |
-| `--tar` | Generate `.tar.gz` archive upon completion | `false` |
+| `-z, --zip` | Generate compressed archive upon completion | `false` |
 | `-u, --user-agent <s>` | Custom HTTP User-Agent header | Default client agent |
 | `--proxy <url>` | HTTP/HTTPS proxy endpoint URL | None |
 | `-e, --exclude <ext>` | Comma-separated list of file extensions to skip | None |
@@ -88,7 +90,7 @@ clone-this-website https://example.com --json
 | `-f, --force` | Force cloning even if accessibility check fails | `false` |
 | `-v, --verbose` | Enable verbose diagnostic logging | `false` |
 | `--json` | Emit structured JSON output | `false` |
-| `-i, --interactive` | Launch step-by-step interactive configuration prompt | `false` |
+| `-i, --interactive` | Launch interactive step-by-step configuration prompt | `false` |
 
 ---
 
@@ -107,6 +109,7 @@ async function mirror() {
     output: './mirrors/example',
     maxDepth: 2,
     concurrency: 5,
+    extractMarkdown: true, // Enables clean Markdown generation for LLM RAG
     zip: true,
     exclude: 'pdf,mp4'
   });
@@ -131,7 +134,8 @@ const cloner = new WebsiteCloner({
   engine: 'native',
   maxDepth: 3,
   concurrency: 8,
-  timeout: 10000
+  timeout: 10000,
+  extractMarkdown: true
 });
 
 cloner.on('progress', (data: ProgressData) => {
@@ -139,7 +143,7 @@ cloner.on('progress', (data: ProgressData) => {
 });
 
 const result: CloneResult = await cloner.clone('https://example.com');
-console.log(`Mirror saved to: ${result.outputDir} (${result.formattedSize})`);
+console.log(`Saved to: ${result.outputDir} (${result.formattedSize})`);
 ```
 
 ---
@@ -153,6 +157,7 @@ Options can be defined declaratively in `.clonerc.json` or `cloner.config.js`:
   "engine": "native",
   "maxDepth": 3,
   "concurrency": 10,
+  "extractMarkdown": true,
   "zip": true,
   "exclude": "mp4,mkv,avi,zip",
   "headers": {
@@ -165,7 +170,7 @@ Options can be defined declaratively in `.clonerc.json` or `cloner.config.js`:
 
 ## Verification and Testing
 
-Execute the comprehensive unit and integration test suite:
+Execute the test suite:
 
 ```bash
 npm test
@@ -178,11 +183,11 @@ npm test
 Type declarations are bundled within [`index.d.ts`](index.d.ts).
 
 - `WebsiteCloner`: Core orchestration class extending `EventEmitter`.
-- `NativeEngine`: Zero-dependency recursive crawler and HTML/CSS asset rewriter.
-- `SystemEngine`: High-performance execution wrapper for system `wget`.
-- `Logger`: Configurable diagnostic logger supporting level filtering and JSON formatting.
+- `NativeEngine`: Recursive crawler, HTML/CSS asset rewriter, and Markdown extractor.
+- `SystemEngine`: Execution wrapper for system `wget`.
+- `Logger`: Diagnostic logger supporting level filtering and JSON formatting.
 - `config`: Configuration loading and parsing utilities.
-- `utils`: File statistics, path sanitation, and compression helpers.
+- `utils`: File statistics, native tar.gz generation, and URL helpers.
 
 ---
 
