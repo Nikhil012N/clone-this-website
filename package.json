@@ -1,6 +1,6 @@
 {
   "name": "clone-this-website",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Ultra-lightweight enterprise website mirroring engine and AI crawler with Dual Engine execution, zero-vulnerability footprint, and LLM/RAG Markdown extraction",
   "main": "index.js",
   "types": "index.d.ts",
