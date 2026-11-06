@@ -1,6 +1,14 @@
 'use strict';
 
-const { WebsiteCloner, SystemEngine, NativeEngine, Logger, utils } = require('./lib/cloner');
+const {
+  WebsiteCloner,
+  SystemEngine,
+  NativeEngine,
+  Logger,
+  RetryHandler,
+  SecurityManager,
+  utils
+} = require('./lib/cloner');
 const config = require('./lib/config');
 
 module.exports = {
@@ -8,6 +16,8 @@ module.exports = {
   SystemEngine,
   NativeEngine,
   Logger,
+  RetryHandler,
+  SecurityManager,
   config,
   utils
 };

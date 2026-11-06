@@ -11,13 +11,15 @@
 
 ## Overview
 
-`clone-this-website` is a minimal, high-performance website mirroring engine engineered for modern enterprise infrastructures and AI data pipelines. It provides both a programmable Node.js/TypeScript SDK and a zero-dependency CLI.
+`clone-this-website` is a minimal, high-performance website mirroring engine engineered for modern enterprise infrastructures and AI data pipelines. It provides both a programmable Node.js/TypeScript SDK and an instant-execution CLI runnable directly via `npx`.
 
 ### Architectural Highlights
 
-- **Near-Zero External Dependencies**: Engineered with only 1 dependency (`cheerio` for HTML/CSS DOM parsing). All networking, CLI parsing, progress streaming, and compression use native Node.js built-ins (`fetch`, `readline`, `zlib`, `stream`).
+- **Near-Zero External Dependencies**: Engineered with only 1 external dependency (`cheerio` for HTML/CSS DOM parsing). All networking, CLI parsing, progress streaming, and compression use native Node.js built-ins (`fetch`, `readline`, `zlib`, `stream`).
 - **Zero Vulnerabilities**: 100% clean security profile verified by `npm audit` with 0 warnings.
-- **AI & RAG Ready (`--markdown`, `--ai`)**: Automatically strips clutter (scripts, SVGs, boilerplate) and generates clean, structured Markdown alongside mirrored assets for direct ingestion into LLM context windows, embedding models, and vector stores (Pinecone, Chroma, Qdrant).
+- **Enterprise Security Hardening**: Built-in `SecurityManager` for path traversal mitigation (Zip Slip protection) and header injection sanitization.
+- **Transient Failure Resilience**: `RetryHandler` with exponential backoff and randomized jitter for network-resilient crawling.
+- **AI & RAG Ready (`--markdown`, `--ai`)**: Automatically strips non-content elements (`<script>`, `<nav>`, `<footer>`, `<svg>`, `<iframe>`) and generates clean semantic Markdown alongside mirrored assets for ingestion into vector stores (Pinecone, Chroma, Qdrant) and LLM contexts.
 - **Dual Engine Architecture**:
   - **Native Engine (`native`)**: Pure Node.js recursive crawler and asset rewriter. Works in restricted containers, non-root environments, and locked-down CI/CD workers without external binaries.
   - **System Engine (`system`)**: Streamed execution utilizing system `wget` for high-throughput raw mirrors.
@@ -28,15 +30,36 @@
 
 ---
 
-## Installation
+## Installation & Execution
 
-### Global CLI
+### Zero-Install Execution via npx
+
+Run instantly in any terminal or CI/CD runner without global installation:
+
+```bash
+# Direct execution via npx
+npx clone-this-website https://example.com
+
+# AI Pipeline: Extract clean Markdown for RAG / LLMs
+npx clone-this-website https://example.com --ai
+
+# Interactive prompt wizard
+npx clone-this-website
+```
+
+### Global Installation (CLI)
 
 ```bash
 npm install -g clone-this-website
+
+# Run via primary command:
+clone-this-website https://example.com
+
+# Or via the short alias:
+cloner https://example.com
 ```
 
-### Local Dependency (SDK)
+### Local Dependency (Programmatic SDK)
 
 ```bash
 npm install clone-this-website
@@ -50,25 +73,25 @@ npm install clone-this-website
 
 ```bash
 # Basic usage
-clone-this-website https://example.com
+npx clone-this-website https://example.com
 
 # AI Pipeline: Mirror site and generate clean Markdown for LLM ingestion
-clone-this-website https://example.com --ai
+npx clone-this-website https://example.com --ai
 
 # Mirror and package into a compressed tar.gz bundle
-clone-this-website https://example.com --zip
+npx clone-this-website https://example.com --zip
 
 # Limit recursion depth and rate-limit requests
-clone-this-website https://example.com -m 2 -d 1
+npx clone-this-website https://example.com -m 2 -d 1
 
 # Corporate proxy and custom user agent
-clone-this-website https://example.com --proxy http://proxy.internal:8080 -u "CustomMirrorService/1.0"
+npx clone-this-website https://example.com --proxy http://proxy.internal:8080 -u "CustomMirrorService/1.0"
 
 # Exclude media formats
-clone-this-website https://example.com -e "mp4,mp3,pdf,zip"
+npx clone-this-website https://example.com -e "mp4,mp3,pdf,zip"
 
 # Machine-readable JSON output for automated CI/CD pipelines
-clone-this-website https://example.com --json
+npx clone-this-website https://example.com --json
 ```
 
 ### CLI Options Reference
@@ -109,6 +132,7 @@ async function mirror() {
     output: './mirrors/example',
     maxDepth: 2,
     concurrency: 5,
+    retries: 3,
     extractMarkdown: true, // Enables clean Markdown generation for LLM RAG
     zip: true,
     exclude: 'pdf,mp4'
@@ -128,13 +152,20 @@ mirror().catch(console.error);
 ### TypeScript
 
 ```typescript
-import { WebsiteCloner, CloneResult, ProgressData } from 'clone-this-website';
+import {
+  WebsiteCloner,
+  CloneResult,
+  ProgressData,
+  SecurityManager,
+  RetryHandler
+} from 'clone-this-website';
 
 const cloner = new WebsiteCloner({
   engine: 'native',
   maxDepth: 3,
   concurrency: 8,
   timeout: 10000,
+  retries: 3,
   extractMarkdown: true
 });
 
@@ -157,6 +188,7 @@ Options can be defined declaratively in `.clonerc.json` or `cloner.config.js`:
   "engine": "native",
   "maxDepth": 3,
   "concurrency": 10,
+  "retries": 3,
   "extractMarkdown": true,
   "zip": true,
   "exclude": "mp4,mkv,avi,zip",
@@ -170,7 +202,7 @@ Options can be defined declaratively in `.clonerc.json` or `cloner.config.js`:
 
 ## Verification and Testing
 
-Execute the test suite:
+Execute the automated test suite:
 
 ```bash
 npm test
@@ -185,6 +217,8 @@ Type declarations are bundled within [`index.d.ts`](index.d.ts).
 - `WebsiteCloner`: Core orchestration class extending `EventEmitter`.
 - `NativeEngine`: Recursive crawler, HTML/CSS asset rewriter, and Markdown extractor.
 - `SystemEngine`: Execution wrapper for system `wget`.
+- `SecurityManager`: Path traversal sanitization, SSRF protection, and header hygiene.
+- `RetryHandler`: Exponential backoff and jitter retry mechanism.
 - `Logger`: Diagnostic logger supporting level filtering and JSON formatting.
 - `config`: Configuration loading and parsing utilities.
 - `utils`: File statistics, native tar.gz generation, and URL helpers.

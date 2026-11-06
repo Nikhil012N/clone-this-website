@@ -31,11 +31,21 @@ async function runTests() {
 
   // 2. Programmatic SDK Export verification
   console.log('\n--- 2. Programmatic SDK Export ---');
-  const { WebsiteCloner, NativeEngine, SystemEngine, Logger, utils } = require('./index');
+  const { WebsiteCloner, NativeEngine, SystemEngine, Logger, RetryHandler, SecurityManager, utils } = require('./index');
   assert('WebsiteCloner is class', typeof WebsiteCloner === 'function');
   assert('NativeEngine is class', typeof NativeEngine === 'function');
   assert('SystemEngine is class', typeof SystemEngine === 'function');
   assert('Logger is class', typeof Logger === 'function');
+  assert('RetryHandler is class', typeof RetryHandler === 'function');
+  assert('SecurityManager is class', typeof SecurityManager === 'function');
+  assert('SecurityManager prevents path traversal', () => {
+    try {
+      SecurityManager.safeResolve('/base', '../../etc/passwd');
+      return false;
+    } catch {
+      return true;
+    }
+  });
   assert('utils.validateUrl validates https', utils.validateUrl('https://example.com'));
   assert('utils.validateUrl rejects invalid protocol', !utils.validateUrl('ftp://example.com'));
   assert('utils.formatBytes works', utils.formatBytes(1048576).includes('MB'));

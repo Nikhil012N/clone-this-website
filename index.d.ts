@@ -9,6 +9,7 @@ export interface ClonerOptions {
   maxDepth?: number;
   concurrency?: number;
   delay?: number;
+  retries?: number;
   timeout?: number;
   zip?: boolean;
   archiveFormat?: ArchiveFormat;
@@ -88,6 +89,19 @@ export declare class Logger extends EventEmitter {
   warn(message: string, meta?: Record<string, any>): void;
   error(message: string, meta?: Record<string, any>): void;
   debug(message: string, meta?: Record<string, any>): void;
+}
+
+export declare class RetryHandler {
+  static executeWithRetry<T>(
+    fn: (attempt: number) => Promise<T>,
+    options?: { retries?: number; delayMs?: number; maxDelayMs?: number }
+  ): Promise<T>;
+}
+
+export declare class SecurityManager {
+  static safeResolve(baseDir: string, relativePath: string): string;
+  static isAllowedTarget(urlStr: string, allowLocalhost?: boolean): boolean;
+  static sanitizeHeaders(headers?: Record<string, string>): Record<string, string>;
 }
 
 export declare const config: {
