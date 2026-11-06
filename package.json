@@ -1,42 +1,49 @@
 {
   "name": "clone-this-website",
-  "version": "1.0.3",
-  "description": "Professional cross-platform website cloner with beautiful CLI interface",
+  "version": "2.0.0",
+  "description": "Enterprise-grade cross-platform website cloner & crawler with Dual Engine (Native Node.js & Wget), programmatic SDK, and CLI",
   "main": "index.js",
+  "types": "index.d.ts",
   "bin": {
-    "clone-this-website": "index.js"
+    "clone-this-website": "bin/cli.js"
   },
   "files": [
+    "bin",
+    "lib",
     "index.js",
-    "test.js",
+    "index.d.ts",
     "LICENSE",
     "package.json",
     "README.md"
   ],
   "scripts": {
-    "start": "node index.js",
+    "start": "node bin/cli.js",
     "test": "node test.js",
-    "build": "npm pack && echo '✅ Package built successfully!' && echo '📦 Ready to publish with: npm publish'"
+    "build": "npm pack"
   },
   "keywords": [
     "website-cloner",
+    "web-crawler",
+    "website-downloader",
+    "mirror",
+    "offline-website",
     "web-scraping",
-    "cli",
-    "terminal",
-    "cross-platform",
     "wget",
-    "website-downloader"
+    "enterprise-scraper",
+    "cli",
+    "sdk"
   ],
   "author": "Website Cloner Pro",
   "license": "MIT",
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=16.0.0"
   },
   "dependencies": {
     "archiver": "^8.0.0",
     "axios": "^1.6.0",
     "boxen": "5",
     "chalk": "^4.1.2",
+    "cheerio": "^1.0.0-rc.12",
     "cli-progress": "^3.12.0",
     "commander": "^9.4.1",
     "figlet": "^1.11.0",

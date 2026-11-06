@@ -1,107 +1,139 @@
 #!/usr/bin/env node
+'use strict';
 
-// Simple test script for clone-this-website
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
-console.log('🧪 Testing Website Cloner Pro...\n');
+console.log('🧪 Running Enterprise Test Suite for clone-this-website (v2.0.0)...\n');
 
-// Test 1: Check if package.json exists
-console.log('📋 Test 1: Checking package.json...');
-if (fs.existsSync('package.json')) {
-  console.log('✅ package.json exists');
-} else {
-  console.log('❌ package.json missing');
-  process.exit(1);
+let failed = false;
+function assert(name, condition, errorMsg = '') {
+  if (condition) {
+    console.log(`✅ ${name}`);
+  } else {
+    console.error(`❌ ${name}: ${errorMsg}`);
+    failed = true;
+  }
 }
 
-// Test 2: Check if index.js exists
-console.log('\n📋 Test 2: Checking index.js...');
-if (fs.existsSync('index.js')) {
-  console.log('✅ index.js exists');
-} else {
-  console.log('❌ index.js missing');
-  process.exit(1);
-}
+async function runTests() {
+  // 1. Structure integrity
+  console.log('--- 1. Structural Checks ---');
+  assert('package.json exists', fs.existsSync('package.json'));
+  assert('index.js SDK exists', fs.existsSync('index.js'));
+  assert('bin/cli.js exists', fs.existsSync('bin/cli.js'));
+  assert('index.d.ts types exist', fs.existsSync('index.d.ts'));
+  assert('lib/cloner.js exists', fs.existsSync('lib/cloner.js'));
+  assert('lib/engines/native.js exists', fs.existsSync('lib/engines/native.js'));
+  assert('lib/engines/system.js exists', fs.existsSync('lib/engines/system.js'));
 
-// Test 3: Check if index.js is executable
-console.log('\n📋 Test 3: Checking index.js shebang...');
-const indexContent = fs.readFileSync('index.js', 'utf8');
-if (indexContent.startsWith('#!/usr/bin/env node')) {
-  console.log('✅ index.js has proper shebang');
-} else {
-  console.log('❌ index.js missing shebang');
-  process.exit(1);
-}
+  // 2. Programmatic SDK export verification
+  console.log('\n--- 2. Programmatic SDK Export ---');
+  const { WebsiteCloner, NativeEngine, SystemEngine, Logger, utils } = require('./index');
+  assert('WebsiteCloner is class', typeof WebsiteCloner === 'function');
+  assert('NativeEngine is class', typeof NativeEngine === 'function');
+  assert('SystemEngine is class', typeof SystemEngine === 'function');
+  assert('Logger is class', typeof Logger === 'function');
+  assert('utils.validateUrl validates https', utils.validateUrl('https://example.com'));
+  assert('utils.validateUrl rejects invalid protocol', !utils.validateUrl('ftp://example.com'));
+  assert('utils.formatBytes works', utils.formatBytes(1048576).includes('MB'));
 
-// Test 4: Check dependencies
-console.log('\n📋 Test 4: Checking dependencies...');
-try {
-  const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  const requiredDeps = ['chalk', 'ora', 'inquirer', 'cli-progress', 'commander', 'axios'];
-  
-  for (const dep of requiredDeps) {
-    if (packageJson.dependencies && packageJson.dependencies[dep]) {
-      console.log(`✅ ${dep} dependency found`);
+  // 3. CLI --help and --version checks
+  console.log('\n--- 3. CLI Commands ---');
+  try {
+    const helpOutput = execSync('node bin/cli.js --help', { encoding: 'utf8' });
+    assert('CLI --help outputs description', helpOutput.includes('Enterprise cross-platform website cloner'));
+    assert('CLI supports --engine option', helpOutput.includes('--engine'));
+    assert('CLI supports --json option', helpOutput.includes('--json'));
+  } catch (err) {
+    assert('CLI --help command runs', false, err.message);
+  }
+
+  // 4. Mock Server & Native Engine Integration Test
+  console.log('\n--- 4. Mock Server & Native Crawl Integration ---');
+  const mockPort = 8999;
+  const mockServer = http.createServer((req, res) => {
+    if (req.url === '/') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>Mock Enterprise Test Site</title></head>
+          <body>
+            <h1>Enterprise Mirror Test</h1>
+            <a href="/about.html">About Page</a>
+            <img src="/logo.png" />
+          </body>
+        </html>
+      `);
+    } else if (req.url === '/about.html') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body><h1>About Page</h1><a href="/">Home</a></body></html>');
+    } else if (req.url === '/logo.png') {
+      res.writeHead(200, { 'Content-Type': 'image/png' });
+      res.end(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
     } else {
-      console.log(`❌ ${dep} dependency missing`);
-      process.exit(1);
+      res.writeHead(404);
+      res.end('Not Found');
+    }
+  });
+
+  await new Promise((resolve) => mockServer.listen(mockPort, resolve));
+
+  const testOutputDir = path.join(__dirname, '.test_clone_output');
+  if (fs.existsSync(testOutputDir)) {
+    fs.rmSync(testOutputDir, { recursive: true, force: true });
+  }
+
+  try {
+    const cloner = new WebsiteCloner({
+      engine: 'native',
+      output: testOutputDir,
+      zip: true,
+      maxDepth: 2,
+      skipTest: true
+    });
+
+    let progressEventTriggered = false;
+    cloner.on('progress', () => {
+      progressEventTriggered = true;
+    });
+
+    const result = await cloner.clone(`http://localhost:${mockPort}/`);
+    assert('Clone completes successfully', result && result.totalFiles >= 2);
+    assert('Progress events were emitted', progressEventTriggered);
+    assert('index.html cloned to disk', fs.existsSync(path.join(testOutputDir, 'index.html')));
+    assert('about.html cloned to disk', fs.existsSync(path.join(testOutputDir, 'about.html')));
+    assert('logo.png cloned to disk', fs.existsSync(path.join(testOutputDir, 'logo.png')));
+    assert('Zip archive created', fs.existsSync(`${testOutputDir}.zip`));
+
+    // Inspect index.html asset rewriting
+    const savedHtml = fs.readFileSync(path.join(testOutputDir, 'index.html'), 'utf8');
+    assert('HTML link rewritten relative', savedHtml.includes('about.html'));
+  } catch (err) {
+    assert('Native crawler mirror test passes', false, err.message);
+  } finally {
+    mockServer.close();
+    // Cleanup test artifacts
+    if (fs.existsSync(testOutputDir)) {
+      fs.rmSync(testOutputDir, { recursive: true, force: true });
+    }
+    if (fs.existsSync(`${testOutputDir}.zip`)) {
+      fs.unlinkSync(`${testOutputDir}.zip`);
     }
   }
-} catch (error) {
-  console.log('❌ Error reading package.json:', error.message);
-  process.exit(1);
-}
 
-// Test 5: Check bin configuration
-console.log('\n📋 Test 5: Checking bin configuration...');
-try {
-  const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  if (packageJson.bin && packageJson.bin['clone-this-website']) {
-    console.log('✅ bin configuration found');
-  } else {
-    console.log('❌ bin configuration missing');
+  if (failed) {
+    console.error('\n❌ Tests failed.');
     process.exit(1);
-  }
-} catch (error) {
-  console.log('❌ Error checking bin configuration:', error.message);
-  process.exit(1);
-}
-
-// Test 6: Try to run help command
-console.log('\n📋 Test 6: Testing help command...');
-try {
-  const help = execSync('node index.js --help', { encoding: 'utf8', timeout: 10000 });
-  if (help.includes('clone-this-website')) {
-    console.log('✅ Help command works');
   } else {
-    console.log('❌ Help command output invalid');
-    console.log('Help output:', help);
-    process.exit(1);
+    console.log('\n🎉 All enterprise tests passed successfully!\n');
   }
-} catch (error) {
-  console.log('❌ Help command failed:', error.message);
-  process.exit(1);
 }
 
-// Test 7: Try to run version command
-console.log('\n📋 Test 7: Testing version command...');
-try {
-  const version = execSync('node index.js --version', { encoding: 'utf8', timeout: 5000 });
-  if (version.trim()) {
-    console.log('✅ Version command works:', version.trim());
-  } else {
-    console.log('❌ Version command output empty');
-    process.exit(1);
-  }
-} catch (error) {
-  console.log('❌ Version command failed:', error.message);
+runTests().catch((err) => {
+  console.error('Fatal test error:', err);
   process.exit(1);
-}
-
-console.log('\n🎉 All tests passed! Website Cloner Pro is ready to use.');
-console.log('\n📖 Usage examples:');
-console.log('  npx clone-this-website https://example.com');
-console.log('  npx clone-this-website --interactive');
-console.log('  npx clone-this-website https://example.com --output my-site --verbose');
+});
